@@ -37,7 +37,13 @@ def main():
         },
     ]
 
-    generate_content(client, messages, args.verbose)
+    for _ in range(20):
+        finsihed = generate_content(client, messages, args.verbose)
+        if finsihed:
+            break
+    else:
+        print("Reached maximum iterations without finishing the process.")
+        exit(1)
 
 def generate_content(client: OpenAI, messages: list, verbose: bool):
     response = client.chat.completions.create(
@@ -49,11 +55,19 @@ def generate_content(client: OpenAI, messages: list, verbose: bool):
         raise RuntimeError("Response usage is None. Unable to retrieve token usage information.")
 
     message = response.choices[0].message
+    messages.append(message)
+
+    if not message.tool_calls:
+        print("Final response:")
+        print(message.content)
+        return True  # Indicate that the process is finished
 
     if message.tool_calls:
         for tool_call in message.tool_calls:
-            function_args = json.loads(tool_call.function.arguments or "{}")
+            # function_args = json.loads(tool_call.function.arguments or "{}")
             result_message = call_function(tool_call, verbose)
+            messages.append(result_message)
+
             if not result_message["content"]:
                 raise Exception("Function call returned no content.")
             if verbose:
